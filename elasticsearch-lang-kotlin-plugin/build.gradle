@@ -1,0 +1,94 @@
+import org.elasticsearch.gradle.BuildPlugin
+
+def verDivider = version.indexOf("-")
+def verPrefix = version
+def verSuffix = ""
+
+if (verDivider > 0) {
+    verPrefix = version.substring(0, verDivider)
+    verSuffix = version.substring(verDivider+1)
+}
+version = "$verPrefix-ES-$version_elasticsearch-$verSuffix"
+
+println("kepling elasticsearch kotlinscript lib version will be $version")
+
+apply plugin: 'elasticsearch.esplugin'
+
+licenseFile = rootProject.file('LICENSE')
+noticeFile = rootProject.file('NOTICE')
+
+esplugin {
+    name 'lang-kotlin'
+    description 'Kotlin language support both for text and lambda (binary) based scripts'
+    classname 'uy.kohesive.elasticsearch.kotlinscript.KotlinScriptPlugin'
+    licenseFile = rootProject.file('LICENSE')
+    noticeFile = rootProject.file('NOTICE')
+    dependencyLicenses.enabled = false
+}
+
+forbiddenApis {
+    ignoreFailures = true
+}
+
+// no unit tests, only integTests
+test.enabled = true
+
+// disable ES checks that don't work well for us (yet)
+licenseHeaders.enabled = false
+checkstyleTest.enabled = false
+dependencyLicenses.enabled = false
+thirdPartyAudit.enabled = false
+namingConventions.enabled = false
+integTest.enabled = false
+
+// work around ES plugin wanting to substitute dependencies
+ext.projectSubstitutions = [:]
+
+dependencies {
+    compile project(':elasticsearch-lang-kotlin-common')
+
+    compile(group: 'uy.kohesive.keplin', name: 'keplin-util', version: version_keplin) {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+
+    compile(group: 'uy.kohesive.cuarentena', name: 'cuarentena', version: version_cuarentena) {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+
+    compile group: 'uy.kohesive.chillambda', name: 'chillambda', version: version_chillambda
+
+    compile group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: version_kotlin
+
+    /*
+    compile(group: 'org.jetbrains.kotlin', name: "kotlin-stdlib-$version_kotlin_stdlib_type", version: version_kotlin) {
+        exclude group: 'org.jetbrains', module: 'annotations'
+    }
+    compile(group: 'org.jetbrains.kotlin', name: "kotlin-reflect", version: version_kotlin) {
+        exclude group: 'org.jetbrains', module: 'annotations'
+    }
+    */
+
+    compile group: 'org.elasticsearch', name: 'elasticsearch', version: version_elasticsearch
+
+    compile group: 'uy.kohesive.klutter', name: 'klutter-conversion', version: version_klutter
+
+    // at runtime we use the ones within Elasticsearch
+    testCompile group: 'org.codelibs.elasticsearch.module', name: 'ingest-common', version: version_elasticsearch
+    testCompile(group: 'org.codelibs.elasticsearch.module', name: 'lang-painless', version: version_elasticsearch) {
+        exclude group: 'org.ow2.asm' // avoid classpath conflict with lang-kotlin during testing
+    }
+
+    testCompile group: 'org.elasticsearch.test', name: 'framework', version: version_elasticsearch
+    testRuntime group: 'org.apache.logging.log4j', name: 'log4j-core', version: version_elasticsearch_log4j
+}
+
+configurations.all {
+    // these are in the embeddable compiler already, to avoid jarhell check we cannot have two copies
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jre8'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-reflect'
+    exclude group: 'org.jetbrains', module: 'annotations'
+    // this is a problem, we need it excluded from Kotlin compiler embeddable so we can use the ES version instead, because this won't work in real life:
+    // exclude group: 'net.java.dev.jna', module: 'jna'
+}

@@ -1,0 +1,1 @@
+Required by Elasticsearch testing harness or fails.

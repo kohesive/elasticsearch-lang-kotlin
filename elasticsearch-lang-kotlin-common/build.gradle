@@ -1,0 +1,22 @@
+dependencies {
+    compile group: 'org.elasticsearch', name: 'elasticsearch', version: version_elasticsearch
+
+    compile(group: 'uy.kohesive.keplin', name: 'keplin-util', version: version_keplin) {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+
+    compile(group: 'uy.kohesive.klutter', name: 'klutter-conversion', version: version_klutter) {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+
+    compile(group: 'uy.kohesive.cuarentena', name: 'cuarentena', version: version_cuarentena) {
+        exclude group: 'org.ow2.asm'
+        exclude group: 'org.jetbrains.kotlin'
+    }
+
+    compile(group: 'uy.kohesive.chillambda', name: 'chillambda', version: version_chillambda) {
+        exclude group: 'org.jetbrains.kotlin'
+    }
+
+    compileOnly(group: 'org.jetbrains.kotlin', name: "kotlin-stdlib-$version_kotlin_stdlib_type", version: version_kotlin)
+}

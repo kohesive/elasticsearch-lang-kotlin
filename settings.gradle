@@ -1,0 +1,3 @@
+include 'elasticsearch-lang-kotlin-common',
+        'elasticsearch-lang-kotlin-plugin',
+        'elasticsearch-lang-kotlin-client'
