@@ -140,7 +140,9 @@ _(note that the version number might slightly differ as updates are added to the
 
 # TODO:
 
-TODO: more to come
+* Smooth out the template class for easier access to everything with less code, still type safe
+* Special case things like Scripted Metric Aggregation to basically hand in the parameters that are needed
+* Special case the template class for different script contexts, `  AGGS("aggs"), SEARCH("search"), UPDATE("update"), INGEST("ingest");`
 
 # Development:
 
