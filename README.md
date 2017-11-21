@@ -29,7 +29,7 @@ and development language, or even CURL):
 
 ```kotlin
 val prep = client.prepareSearch("myIndex")
-        .setKotlinScript("scriptField1", Script(ScriptType.INLINE, "kotlin", 
+        .addKotlinScriptField("scriptField1", Script(ScriptType.INLINE, "kotlin", 
           """
             val currentValue = doc.stringVal("badContent") ?: ""
             "^(\\w+)\\s*\\:\\s*(.+)$".toRegex().matchEntire(currentValue)
@@ -50,7 +50,7 @@ client library to make this easier and transparent):
 
 ```kotlin
 val query = client.prepareSearch("myIndex")
-            .setKotlinScript("scriptField1", emptyMap()) {
+            .addKotlinScriptField("scriptField1", emptyMap()) {
                 val currentValue = doc["badContent"].asList<String>()
                 currentValue.map { value -> badCategoryPattern.toRegex().matchEntire(value)?.takeIf { it.groups.size > 2 } }
                         .filterNotNull()
@@ -68,7 +68,7 @@ or another example of update by query:
 
 ```kotlin
 val updateQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(client)
-                    .setKotlinScript {
+                    .addKotlinScriptField {
                         val num = _source["number"].asValue(0)
                         if (num >= 4) {
                             ctx["op"] = "delete"
@@ -91,11 +91,14 @@ Some tips for accessing common properties:
 |doc["field"]|doc["field"]|Reference as a hash lookup.|
 |doc.field|doc["field"]|Reference as a hash lookup|
 |_source.field|_source["field"]|Reference as a hash lookup|
+|script parameters|param["name"]/Reference as a hash lookup|
 |_score|_score|Double value|
 |_value|_value|Any? value|
 
 When using a value you can access it as either single value `asValue()` or `asValue(default)` and as
-a list with `asList()`.  If type cannot be infered, add the type on the call, for example `asValue<Int>()`.
+a list with `asList()`.  If type cannot be infered, add the type on the call, for example `asValue<Int>()`. 
+You can also just use the value directly but then you will need to cast it to the correct type.  `asValue()` 
+will do a conversion on basic types if possible.
 
 Both the client library and the script template will surely change, so expect large changes as they are used to build
 out realistic test cases for every script type in Elasticsearch.  Consider these two elements more ALPHA while the rest
@@ -129,7 +132,7 @@ script.engine.kotlin.inline: true
 
 For client library containing extension functions for Kotlin, use the follow artifact from Gradle or Maven:
 ```
-uy.kohesive.elasticsearch:elasticsearch-lang-kotlin-client:1.0.0-BETA-03.01
+uy.kohesive.elasticsearch:elasticsearch-lang-kotlin-client:1.0.0-BETA-03.02
 ```
 
 _(note that the version number might slightly differ as updates are added to the client that do not require a new server plugin update)_
