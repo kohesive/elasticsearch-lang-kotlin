@@ -11,6 +11,8 @@ import org.elasticsearch.index.reindex.ReindexPlugin
 import org.elasticsearch.index.reindex.UpdateByQueryAction
 import org.elasticsearch.plugins.Plugin
 import org.elasticsearch.search.SearchHit
+import org.elasticsearch.search.aggregations.metrics.scripted.ScriptedMetric
+import org.elasticsearch.search.aggregations.metrics.scripted.ScriptedMetricAggregationBuilder
 import org.elasticsearch.test.ESIntegTestCase
 import org.elasticsearch.transport.client.PreBuiltTransportClient
 import org.junit.Before
@@ -45,8 +47,9 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     private lateinit var client: Client
 
     override fun transportClientPlugins(): Collection<Class<out Plugin>> {
-         return listOf(ReindexPlugin::class.java)
+        return listOf(ReindexPlugin::class.java)
     }
+
     override fun nodePlugins(): Collection<Class<out Plugin>> =
             listOf(KotlinScriptPlugin::class.java,
                     ReindexPlugin::class.java)
@@ -156,7 +159,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
         }
     }
 
-    fun testUpdateByQueryAsScript() {
+    fun testUpdateByQueryAsLambda() {
         val doc1 = client.prepareGet(INDEX_NAME, "test", "1").execute().actionGet()
         val doc2 = client.prepareGet(INDEX_NAME, "test", "2").execute().actionGet()
         val doc5 = client.prepareGet(INDEX_NAME, "test", "5").execute().actionGet()
@@ -180,13 +183,37 @@ class ScriptExtensionsTests : ESIntegTestCase() {
         prep.execute().actionGet()
 
         val newDoc1 = client.prepareGet(INDEX_NAME, "test", "1").execute().actionGet()
-        val newDoc2 =  client.prepareGet(INDEX_NAME, "test", "2").execute().actionGet()
+        val newDoc2 = client.prepareGet(INDEX_NAME, "test", "2").execute().actionGet()
         val deadDoc5 = client.prepareGet(INDEX_NAME, "test", "5").execute().actionGet()
 
-        assertEquals((doc1.sourceAsMap["number"] as Int)+1, newDoc1.sourceAsMap["number"] as Int)
-        assertEquals((doc2.sourceAsMap["number"] as Int)+1, newDoc2.sourceAsMap["number"] as Int)
+        assertEquals((doc1.sourceAsMap["number"] as Int) + 1, newDoc1.sourceAsMap["number"] as Int)
+        assertEquals((doc2.sourceAsMap["number"] as Int) + 1, newDoc2.sourceAsMap["number"] as Int)
         assertFalse(deadDoc5.isExists)
 
+    }
+
+    // TODO: make these access to _agg easier, and then document.
+    fun testScriptedMetricAggregationAsLambda() {
+        val prep = client.prepareSearch(INDEX_NAME)
+                .setQuery(QueryBuilders.matchQuery("title", "title"))
+                .addAggregation(ScriptedMetricAggregationBuilder("totalTransactions")
+                        .setKotlinInitScript {
+                           _agg["transactions"] = arrayListOf<Double>()
+                        }.setKotlinMapScript {
+                    if (doc["number"].asValue(1).rem(2) == 0) {
+                        val txValue = doc["dblValue"].cast<List<Double>>()?.get(0) ?: 0.0
+                        _agg["transactions"].cast<MutableList<Double>>()!!.add(txValue)
+                    }
+                }.setKotlinCombineScript {
+                    _agg["transactions"].cast<List<Double>>()!!.sum()
+
+                }.setKotlinReduceScript {
+                    _aggs.cast<List<Double>>()!!.sum()
+                })
+                .setFetchSource(true)
+        val results = prep.execute().actionGet()
+        val aggResults = results.aggregations.get<ScriptedMetric>("totalTransactions")
+        assertEquals(7.98, aggResults.aggregation())
     }
 
     fun testFuncRefWithMockContextAndRealDeal() {

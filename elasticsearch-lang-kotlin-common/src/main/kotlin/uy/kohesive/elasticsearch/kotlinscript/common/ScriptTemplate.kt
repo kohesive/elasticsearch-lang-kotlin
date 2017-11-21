@@ -71,6 +71,14 @@ abstract class EsKotlinScriptTemplate(val param: Map<String, Any>,
         (ctx.get("_source") ?: param.get("_source") ?: throw IllegalStateException("_source is not availalbe in this context")) as MutableMap<String, Any>
     }
 
+    val _agg: MutableMap<String, Any> by lazy(LazyThreadSafetyMode.NONE) {
+        param["_agg"] as MutableMap<String, Any>
+    }
+
+    val _aggs: List<Any> by lazy(LazyThreadSafetyMode.NONE) {
+        param["_aggs"] as List<Any>
+    }
+
     fun <R : Any> convert(value: Any, toType: Type): R {
         return defaultConverter.convertValue<Any, R>(value::class.java, toType, value) as R
     }
@@ -94,6 +102,13 @@ abstract class EsKotlinScriptTemplate(val param: Map<String, Any>,
         return if (this@asValue == null) default else this@asValue!!.asValue<T>()
     }
 
+    inline fun <reified T : Any> Any?.cast(): T? {
+        return this as? T
+    }
+
+    inline fun <reified T : Any> Any?.cast(default: T): T {
+        return this as? T ?: default
+    }
 
     fun <T : Any> Map<String, T>.intVal(field: String, default: Int): Int = get(field)?.asValue<Long>()?.toInt() ?: default
     fun <T : Any> Map<String, T>.longVal(field: String, default: Long): Long = get(field)?.asValue<Long>() ?: default
