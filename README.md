@@ -13,6 +13,8 @@ see example video: https://vimeo.com/apatrida/es-lang-kotlin (older, but the ide
 
 # Guide
 
+**TODO:** *this is rough guide, but will get you started.*
+
 With the plugin enabled, you can run Kotlin scripts in one of two ways:
 
 * Text based script, which is same as most scripting languages in Elasticsearch.
