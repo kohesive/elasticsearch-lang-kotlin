@@ -67,8 +67,8 @@ abstract class EsKotlinScriptTemplate(val param: Map<String, Any>,
                                       val _value: Any?,
                                       val _score: Double) {
     @Suppress("UNCHECKED_CAST")
-    val _source: Map<String, Any> by lazy(LazyThreadSafetyMode.NONE) {
-        (ctx.get("_source") ?: param.get("_source") ?: throw IllegalStateException("_source is not availalbe in this context")) as Map<String, Any>
+    val _source: MutableMap<String, Any> by lazy(LazyThreadSafetyMode.NONE) {
+        (ctx.get("_source") ?: param.get("_source") ?: throw IllegalStateException("_source is not availalbe in this context")) as MutableMap<String, Any>
     }
 
     fun <R : Any> convert(value: Any, toType: Type): R {

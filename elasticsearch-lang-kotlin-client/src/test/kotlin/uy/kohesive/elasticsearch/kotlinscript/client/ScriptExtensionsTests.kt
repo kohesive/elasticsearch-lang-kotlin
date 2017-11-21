@@ -7,6 +7,8 @@ import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.common.xcontent.XContentFactory
 import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.reindex.ReindexPlugin
+import org.elasticsearch.index.reindex.UpdateByQueryAction
 import org.elasticsearch.plugins.Plugin
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
@@ -42,8 +44,12 @@ class ScriptExtensionsTests : ESIntegTestCase() {
 
     private lateinit var client: Client
 
+    override fun transportClientPlugins(): Collection<Class<out Plugin>> {
+         return listOf(ReindexPlugin::class.java)
+    }
     override fun nodePlugins(): Collection<Class<out Plugin>> =
-            listOf(KotlinScriptPlugin::class.java)
+            listOf(KotlinScriptPlugin::class.java,
+                    ReindexPlugin::class.java)
 
     fun testNormalQuery() {
 
@@ -60,7 +66,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
 
     fun testStringScript() {
         val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("scriptField1", mapOf("multiplier" to 2), """
+                .setKotlinScript("scriptField1", mapOf("multiplier" to 2), """
                     doc.intVal("number", 1) * param.intVal("multiplier", 1) + _score
                 """).setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
@@ -73,7 +79,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     fun testSecurityViolationInStringScript() {
         try {
             val response = client.prepareSearch(INDEX_NAME)
-                    .addScriptField("scriptField1", mapOf("multiplier" to 2), """
+                    .setKotlinScript("scriptField1", mapOf("multiplier" to 2), """
                     import java.io.*
 
                     val f = File("howdy")  // violation!
@@ -90,7 +96,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
 
     fun testLambdaAsScript() {
         val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("scriptField1", mapOf("multiplier" to 2)) {
+                .setKotlinScript("scriptField1", mapOf("multiplier" to 2)) {
                     doc["number"].asValue(1) * param["multiplier"].asValue(1) + _score
                 }.setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
@@ -102,7 +108,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
 
     fun testLambdaAccessingMoreTypes() {
         val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("scriptField1", mapOf("multiplier" to 2)) {
+                .setKotlinScript("scriptField1", mapOf("multiplier" to 2)) {
                     doc["dtValue"].asValue(1L)         // date as long
                     doc["dtValue"]?.asValue<Instant>() // date as instant
                     doc["number"].asValue(1) * param["multiplier"].asValue(1) * doc["dblValue"].asValue(1.0) + _score
@@ -117,7 +123,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     fun testSecurityViolationInLambdaAsScript() {
         try {
             val response = client.prepareSearch(INDEX_NAME)
-                    .addScriptField("multi", mapOf("multiplier" to 2)) {
+                    .setKotlinScript("multi", mapOf("multiplier" to 2)) {
                         val f = File("asdf") // security violation
                         doc["number"].asValue(1) * param["multiplier"].asValue(1) + _score
                     }.setQuery(QueryBuilders.matchQuery("title", "title"))
@@ -131,7 +137,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     fun testMoreComplexLambdaAsScript() {
         val badCategoryPattern = """^(\w+)\s*\:\s*(.+)$""".toPattern() // Pattern is serializable, Regex is not
         val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("scriptField1", emptyMap()) {
+                .setKotlinScript("scriptField1", emptyMap()) {
                     val currentValue = doc["badContent"].asList<String>()
                     currentValue.map { value -> badCategoryPattern.toRegex().matchEntire(value)?.takeIf { it.groups.size > 2 } }
                             .filterNotNull()
@@ -148,6 +154,39 @@ class ScriptExtensionsTests : ESIntegTestCase() {
         prep.runManyTimes {
             printHitsField("scriptField1")
         }
+    }
+
+    fun testUpdateByQueryAsScript() {
+        val doc1 = client.prepareGet(INDEX_NAME, "test", "1").execute().actionGet()
+        val doc2 = client.prepareGet(INDEX_NAME, "test", "2").execute().actionGet()
+        val doc5 = client.prepareGet(INDEX_NAME, "test", "5").execute().actionGet()
+        assertTrue(doc1.isExists)
+        assertTrue(doc2.isExists)
+        assertTrue(doc5.isExists)
+
+        val prep = UpdateByQueryAction.INSTANCE.newRequestBuilder(client)
+                .setKotlinScript {
+                    val num = _source["number"].asValue(0)
+                    if (num >= 4) {
+                        ctx["op"] = "delete"
+                    } else {
+                        _source["number"] = num + 1
+                    }
+                }.source(INDEX_NAME)
+                .filter(QueryBuilders.matchQuery("title", "title"))
+                .apply {
+                    source().setTypes("test")
+                }
+        prep.execute().actionGet()
+
+        val newDoc1 = client.prepareGet(INDEX_NAME, "test", "1").execute().actionGet()
+        val newDoc2 =  client.prepareGet(INDEX_NAME, "test", "2").execute().actionGet()
+        val deadDoc5 = client.prepareGet(INDEX_NAME, "test", "5").execute().actionGet()
+
+        assertEquals((doc1.sourceAsMap["number"] as Int)+1, newDoc1.sourceAsMap["number"] as Int)
+        assertEquals((doc2.sourceAsMap["number"] as Int)+1, newDoc2.sourceAsMap["number"] as Int)
+        assertFalse(deadDoc5.isExists)
+
     }
 
     fun testFuncRefWithMockContextAndRealDeal() {
@@ -174,7 +213,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
         assertEquals(expectedResults, mockContext.scriptFunc())
 
         val prep = client.prepareSearch(INDEX_NAME)
-                .addScriptField("scriptField1", emptyMap(), scriptFunc)
+                .setKotlinScript("scriptField1", emptyMap(), scriptFunc)
                 .setQuery(QueryBuilders.matchQuery("title", "title"))
                 .setFetchSource(true)
 
@@ -188,7 +227,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
         // Delete any previously indexed content.
         val testRemote = System.getProperty("localTestRemoteThingy", "false").equals("true", ignoreCase = true)
         client = if (testRemote) {
-            PreBuiltTransportClient(Settings.EMPTY).addTransportAddress(InetSocketTransportAddress(InetAddress.getLocalHost(), 9300))
+            PreBuiltTransportClient(Settings.EMPTY, transportClientPlugins()).addTransportAddress(InetSocketTransportAddress(InetAddress.getLocalHost(), 9300))
         } else {
             ESIntegTestCase.client()
         }

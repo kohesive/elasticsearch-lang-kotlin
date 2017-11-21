@@ -28,8 +28,8 @@ An example of using a Text based script (works from any language, here the examp
 and development language, or even CURL):
 
 ```kotlin
-val prep = client.prepareSearch(INDEX_NAME)
-        .addScriptField("scriptField1", Script(ScriptType.INLINE, "kotlin", 
+val prep = client.prepareSearch("myIndex")
+        .setKotlinScript("scriptField1", Script(ScriptType.INLINE, "kotlin", 
           """
             val currentValue = doc.stringVal("badContent") ?: ""
             "^(\\w+)\\s*\\:\\s*(.+)$".toRegex().matchEntire(currentValue)
@@ -42,32 +42,60 @@ val prep = client.prepareSearch(INDEX_NAME)
                                 .map { typeName + ": " + it }
                     } ?: listOf(currentValue)
           """, emptyMap()))
-        .setQuery(QueryBuilders.matchQuery("title", "title"))
-        .setFetchSource(true)
+        .setQuery(...)
 ```
 
 And a lambda version allows you to use a lambda or function reference as a script (this sample uses the `elasticsearch-lang-kotlin-client`
 client library to make this easier and transparent):
 
 ```kotlin
-val prep = client.prepareSearch(INDEX_NAME)
-        .addScriptField("scriptField1", emptyMap()) {
-            val currentValue = doc["badContent"].asList<String>()
-            currentValue.map { value -> badCategoryPattern.toRegex().matchEntire(value)?.takeIf { it.groups.size > 2 } }
-                    .filterNotNull()
-                    .map {
-                        val typeName = it.groups[1]!!.value.toLowerCase()
-                        it.groups[2]!!.value.split(',')
-                                .map { it.trim().toLowerCase() }
-                                .filterNot { it.isBlank() }
-                                .map { "$typeName: $it" }
-                    }.flatten()
-        }.setQuery(QueryBuilders.matchQuery("title", "title"))
-        .setFetchSource(true)
+val query = client.prepareSearch("myIndex")
+            .setKotlinScript("scriptField1", emptyMap()) {
+                val currentValue = doc["badContent"].asList<String>()
+                currentValue.map { value -> badCategoryPattern.toRegex().matchEntire(value)?.takeIf { it.groups.size > 2 } }
+                        .filterNotNull()
+                        .map {
+                            val typeName = it.groups[1]!!.value.toLowerCase()
+                            it.groups[2]!!.value.split(',')
+                                    .map { it.trim().toLowerCase() }
+                                    .filterNot { it.isBlank() }
+                                    .map { "$typeName: $it" }
+                        }.flatten()
+            }.setQuery(...)
+```
+
+or another example of update by query:
+
+```kotlin
+val updateQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(client)
+                    .setKotlinScript {
+                        val num = _source["number"].asValue(0)
+                        if (num >= 4) {
+                            ctx["op"] = "delete"
+                        } else {
+                            _source["number"] = num + 1
+                        }
+                    }.source("myIndex").filter(...)
 ```
 
 To see what helper methods are available to access values from the document, view the base class that your script will 
 inherit:  [ScriptTemplate.kt](elasticsearch-lang-kotlin-common/src/main/kotlin/uy/kohesive/elasticsearch/kotlinscript/common/ScriptTemplate.kt)
+
+Some tips for accessing common properties:
+
+|field|syntax|notes|
+|-----|------|-----|
+|ctx._source|_source|This always checks internally `ctx._source` then `_source` so you do not have to special case which one is correct|
+|ctx.value|ctx["value"]|Reference as a hash lookup|
+|_source|_source|same, direct reference|
+|doc["field"]|doc["field"]|Reference as a hash lookup.|
+|doc.field|doc["field"]|Reference as a hash lookup|
+|_source.field|_source["field"]|Reference as a hash lookup|
+|_score|_score|Double value|
+|_value|_value|Any? value|
+
+When using a value you can access it as either single value `asValue()` or `asValue(default)` and as
+a list with `asList()`.  If type cannot be infered, add the type on the call, for example `asValue<Int>()`.
 
 Both the client library and the script template will surely change, so expect large changes as they are used to build
 out realistic test cases for every script type in Elasticsearch.  Consider these two elements more ALPHA while the rest
@@ -101,8 +129,10 @@ script.engine.kotlin.inline: true
 
 For client library containing extension functions for Kotlin, use the follow artifact from Gradle or Maven:
 ```
-uy.kohesive.elasticsearch:elasticsearch-lang-kotlin-client:1.0.0-BETA-03
+uy.kohesive.elasticsearch:elasticsearch-lang-kotlin-client:1.0.0-BETA-03.01
 ```
+
+_(note that the version number might slightly differ as updates are added to the client that do not require a new server plugin update)_
 
 # TODO:
 
