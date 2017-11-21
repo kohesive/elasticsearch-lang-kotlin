@@ -91,7 +91,7 @@ Some tips for accessing common properties:
 |doc["field"]|doc["field"]|Reference as a hash lookup.|
 |doc.field|doc["field"]|Reference as a hash lookup|
 |_source.field|_source["field"]|Reference as a hash lookup|
-|script parameters|param["name"]/Reference as a hash lookup|
+|script parameters|param["name"]|Reference as a hash lookup|
 |_score|_score|Double value|
 |_value|_value|Any? value|
 
