@@ -29,7 +29,8 @@ and development language, or even CURL):
 
 ```kotlin
 val prep = client.prepareSearch(INDEX_NAME)
-        .addScriptField("scriptField1", Script(ScriptType.INLINE, "kotlin", """
+        .addScriptField("scriptField1", Script(ScriptType.INLINE, "kotlin", 
+          """
             val currentValue = doc.stringVal("badContent") ?: ""
             "^(\\w+)\\s*\\:\\s*(.+)$".toRegex().matchEntire(currentValue)
                     ?.takeIf { it.groups.size > 2 }
