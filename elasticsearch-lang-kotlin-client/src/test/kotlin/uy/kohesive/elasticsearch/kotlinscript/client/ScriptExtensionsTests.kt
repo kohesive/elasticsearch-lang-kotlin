@@ -165,7 +165,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
         assertTrue(doc5.isExists)
 
         val prep = UpdateByQueryAction.INSTANCE.newRequestBuilder(client)
-                .addKotlinScriptField(mapOf("byAmount" to 1)) {
+                .setKotlinScript(mapOf("byAmount" to 1)) {
                     val num = _source["number"].asValue(0)
                     if (num >= 4) {
                         ctx["op"] = "delete"

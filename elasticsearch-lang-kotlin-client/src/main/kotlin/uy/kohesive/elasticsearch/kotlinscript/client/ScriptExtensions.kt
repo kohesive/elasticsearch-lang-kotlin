@@ -24,22 +24,22 @@ fun SearchRequestBuilder.addKotlinScriptField(name: String, params: Map<String, 
 
 // ===
 
-fun <T : Any?> UpdateRequestBuilder.addKotlinScriptField(params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): UpdateRequestBuilder {
+fun <T : Any?> UpdateRequestBuilder.setKotlinScript(params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): UpdateRequestBuilder {
     return this.setScript(lambdaToScript(params, lambda))
 }
 
-fun UpdateRequestBuilder.addKotlinScriptField(params: Map<String, Any> = emptyMap(), scriptCode: String): UpdateRequestBuilder {
+fun UpdateRequestBuilder.setKotlinScript(params: Map<String, Any> = emptyMap(), scriptCode: String): UpdateRequestBuilder {
     return this.setScript(Script(ScriptType.INLINE, "kotlin", scriptCode, params))
 }
 
 // ===
 
-fun <T : Any?> UpdateByQueryRequestBuilder.addKotlinScriptField(params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): UpdateByQueryRequestBuilder {
+fun <T : Any?> UpdateByQueryRequestBuilder.setKotlinScript(params: Map<String, Any> = emptyMap(), lambda: EsKotlinScriptTemplate.() -> T): UpdateByQueryRequestBuilder {
     return this.script(lambdaToScript(params, lambda))
 }
 
-fun UpdateByQueryRequestBuilder.addKotlinScriptField(params: Map<String, Any> = emptyMap(), scriptCode: String): UpdateByQueryRequestBuilder {
+fun UpdateByQueryRequestBuilder.setKotlinScript(params: Map<String, Any> = emptyMap(), scriptCode: String): UpdateByQueryRequestBuilder {
     return this.script(Script(ScriptType.INLINE, "kotlin", scriptCode, params))
 }
 
-
+// ===

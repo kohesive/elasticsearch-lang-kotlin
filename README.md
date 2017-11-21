@@ -68,7 +68,7 @@ or another example of update by query:
 
 ```kotlin
 val updateQuery = UpdateByQueryAction.INSTANCE.newRequestBuilder(client)
-                    .addKotlinScriptField {
+                    .setKotlinScript {
                         val num = _source["number"].asValue(0)
                         if (num >= 4) {
                             ctx["op"] = "delete"
