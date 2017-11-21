@@ -11,7 +11,6 @@ import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.xcontent.XContentFactory
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.ingest.common.IngestCommonPlugin
-import org.elasticsearch.painless.PainlessPlugin
 import org.elasticsearch.plugins.Plugin
 import org.elasticsearch.script.Script
 import org.elasticsearch.script.ScriptType
@@ -19,7 +18,6 @@ import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
 import org.junit.Before
 import uy.klutter.core.common.toIsoString
-import uy.kohesive.elasticsearch.kotlinscript.KotlinScriptEngineService
 import uy.kohesive.elasticsearch.kotlinscript.KotlinScriptPlugin
 import uy.kohesive.elasticsearch.kotlinscript.common.ConcreteEsKotlinScriptTemplate
 import uy.kohesive.elasticsearch.kotlinscript.common.EsKotlinScriptTemplate
@@ -37,7 +35,7 @@ class KotlinScriptEngineTests : ESIntegTestCase() {
             temp.asMap.forEach {
                 put(it.key, it.value)
             }
-            put("script.painless.regex.enabled", true)
+            //  put("script.painless.regex.enabled", true)
         }
         return builder.build()
     }
@@ -49,9 +47,7 @@ class KotlinScriptEngineTests : ESIntegTestCase() {
     private lateinit var client: Client
 
     override fun nodePlugins(): Collection<Class<out Plugin>> =
-            listOf(KotlinScriptPlugin::class.java,
-                    IngestCommonPlugin::class.java,
-                    PainlessPlugin::class.java)
+            listOf(KotlinScriptPlugin::class.java, IngestCommonPlugin::class.java)
 
     fun testNormalQuery() {
 
@@ -215,7 +211,7 @@ class KotlinScriptEngineTests : ESIntegTestCase() {
                 .startObject()
                 .startObject("script")
                 .field("lang", "kotlin")
-                .field("inline",  KotlinScriptConfiguredChillambda.chillambda.serializeLambdaToBase64<EsKotlinScriptTemplate, Any>(lambda))
+                .field("inline", KotlinScriptConfiguredChillambda.chillambda.serializeLambdaToBase64<EsKotlinScriptTemplate, Any>(lambda))
                 .startObject("params").endObject()
                 .endObject()
                 .endObject()

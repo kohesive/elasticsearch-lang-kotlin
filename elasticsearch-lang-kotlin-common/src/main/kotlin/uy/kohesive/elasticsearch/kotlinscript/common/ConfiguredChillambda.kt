@@ -2,7 +2,6 @@ package uy.kohesive.elasticsearch.kotlinscript.common
 
 import uy.kohesive.chillamda.Chillambda
 import uy.kohesive.cuarentena.Cuarentena
-import uy.kohesive.cuarentena.Cuarentena.Companion.painlessPlusKotlinPolicy
 import uy.kohesive.cuarentena.policy.AccessTypes
 import uy.kohesive.cuarentena.policy.PolicyAllowance
 import uy.kohesive.cuarentena.policy.toPolicy
@@ -24,7 +23,10 @@ object KotlinScriptConfiguredChillambda {
             PolicyAllowance.ClassLevel.ClassConstructorAccess(EsKotlinScriptTemplate::class.java.canonicalName, "*", setOf(AccessTypes.call_Class_Constructor))
     )).toPolicy().toSet()
 
-    val cuarentena = Cuarentena(painlessPlusKotlinPolicy + receiverCuarentenaPolicies)
+    val cuarentena = Cuarentena(Cuarentena.painlessPlusKotlinFullPolicy + receiverCuarentenaPolicies)
     val chillambda = Chillambda(cuarentena)
 
+    fun init() {
+        chillambda.also { /* noop */ }
+    }
 }

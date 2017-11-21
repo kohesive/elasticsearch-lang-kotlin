@@ -45,7 +45,7 @@ integTest.enabled = false
 ext.projectSubstitutions = [:]
 
 dependencies {
-    compile project(':elasticsearch-lang-kotlin-common')
+    compile(project(':elasticsearch-lang-kotlin-common'))
 
     compile(group: 'uy.kohesive.keplin', name: 'keplin-util', version: version_keplin) {
         exclude group: 'org.jetbrains.kotlin'

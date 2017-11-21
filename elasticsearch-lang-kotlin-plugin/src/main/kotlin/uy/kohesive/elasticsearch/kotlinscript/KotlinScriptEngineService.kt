@@ -3,7 +3,6 @@ package uy.kohesive.elasticsearch.kotlinscript
 import org.apache.lucene.index.LeafReaderContext
 import org.apache.lucene.search.Scorer
 import org.elasticsearch.SpecialPermission
-import org.elasticsearch.common.SuppressForbidden
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.script.*
 import org.elasticsearch.search.lookup.LeafSearchLookup
@@ -22,7 +21,6 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.utils.PathUtil
 import uy.kohesive.chillamda.Chillambda
 import uy.kohesive.cuarentena.Cuarentena
-import uy.kohesive.cuarentena.Cuarentena.Companion.painlessPlusKotlinPolicy
 import uy.kohesive.cuarentena.NamedClassBytes
 import uy.kohesive.cuarentena.policy.AccessTypes
 import uy.kohesive.cuarentena.policy.PolicyAllowance
@@ -45,8 +43,6 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         val uniqueScriptId: AtomicInteger = AtomicInteger(0)
 
         val SCRIPT_RESULT_FIELD_NAME = "\$\$result"
-
-
     }
 
     val sm = System.getSecurityManager()
@@ -55,21 +51,15 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
     val disposable = run {
         sm.checkPermission(SpecialPermission())
-        AccessController.doPrivileged(PrivilegedAction
-        {
-            Disposer.newDisposable()
-        })
+        AccessController.doPrivileged(PrivilegedAction { Disposer.newDisposable() })
     }
 
-    val chillambda by lazy {
+    val chillambda = run {
         sm.checkPermission(SpecialPermission())
-        AccessController.doPrivileged(PrivilegedAction
-        {
-            KotlinScriptConfiguredChillambda.chillambda
-        })
+        AccessController.doPrivileged(PrivilegedAction { KotlinScriptConfiguredChillambda.chillambda })
     }
 
-    val repl by lazy {
+    val replCompiler by lazy {
         sm.checkPermission(SpecialPermission())
         AccessController.doPrivileged(PrivilegedAction {
             val scriptDefinition = KotlinScriptDefinitionEx(EsKotlinScriptTemplate::class, makeArgs())
@@ -102,13 +92,14 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
 
     class ExecutableKotlin(val compiledScript: CompiledScript, val params: Map<String, Any>?) : ExecutableScript {
         val _mutableVars: MutableMap<String, Any> = HashMap<String, Any>(params)
+        val sm = System.getSecurityManager()
 
         override fun run(): Any? {
             @Suppress("UNCHECKED_CAST")
             val ctx = _mutableVars.get("ctx") as? MutableMap<String, Any> ?: hashMapOf()
             val args = makeArgs(variables = _mutableVars, ctx = ctx)
             val executable = compiledScript.compiled() as PreparedScript
-            return executable.code.invoker(executable.code, args)
+            return executable.code.runWithArgs(args)
         }
 
         override fun setNextVar(name: String, value: Any) {
@@ -135,6 +126,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             putAll(lookup.asMap())
         }
 
+        val sm = System.getSecurityManager()
         var _doc = lookup.doc() as MutableMap<String, MutableList<Any>>
         var _aggregationValue: Any? = null
         var _scorer: Scorer? = null
@@ -146,7 +138,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             val ctx = _mutableVars.get("ctx") as? MutableMap<String, Any> ?: hashMapOf()
             val args = makeArgs(_mutableVars, score, _doc, ctx, _aggregationValue)
             val executable = compiledScript.compiled() as PreparedScript
-            return executable.code.invoker(executable.code, args)
+            return executable.code.runWithArgs(args)
         }
 
         override fun setScorer(scorer: Scorer?) {
@@ -190,27 +182,20 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             val executableCode = if (Chillambda.isPrefixedBase64(scriptSource)) {
                 try {
                     val (className, classesAsBytes, serInstance, verification) = chillambda.deserFromPrefixedBase64<EsKotlinScriptTemplate, Any>(scriptSource)
-                    val classLoader = ScriptClassLoader(Thread.currentThread().contextClassLoader).apply {
+                    val classLoader = ScriptClassLoader(this.javaClass.classLoader).apply {
                         classesAsBytes.forEach {
                             addClass(it.className, it.bytes)
                         }
                     }
-                    ExecutableCode(className, scriptSource, classesAsBytes, verification, serInstance) { scriptArgs ->
-                        // this is ok to be in the privileged block since it is executed later in a
-                        // non privileged scope.
-                        val ocl = Thread.currentThread().contextClassLoader
+                    ExecutableCode(className, scriptSource, classesAsBytes, verification, serInstance, classLoader) { scriptArgs ->
+                        // this is deferred to be executed later, so is not really in priviledged block
+                        // deser every time in case it is mutable, we don't want a changing base (or is that really possible?)
                         try {
-                            Thread.currentThread().contextClassLoader = classLoader
-                            // deser every time in case it is mutable, we don't want a changing base (or is that really possible?)
-                            try {
-                                val lambda: EsKotlinScriptTemplate.() -> Any? = chillambda.instantiateSerializedLambdaSafely(className, serInstance, deserAdditionalPolicies)
-                                val scriptTemplate = scriptTemplateConstructor.call(*scriptArgs.scriptArgs)
-                                lambda.invoke(scriptTemplate)
-                            } catch (ex: Exception) {
-                                throw ScriptException(ex.message ?: "Error executing Lambda", ex, emptyList(), scriptSource, LANGUAGE_NAME)
-                            }
-                        } finally {
-                            Thread.currentThread().contextClassLoader = ocl
+                            val lambda: EsKotlinScriptTemplate.() -> Any? = chillambda.instantiateSerializedLambdaSafely(className, serInstance, scriptClassLoader, deserAdditionalPolicies)
+                            val scriptTemplate = scriptTemplateConstructor.call(*scriptArgs.scriptArgs)
+                            lambda.invoke(scriptTemplate)
+                        } catch (ex: Exception) {
+                            throw ScriptException(ex.message ?: "Error executing Lambda", ex, emptyList(), scriptSource, LANGUAGE_NAME)
                         }
                     }
                 } catch (ex: Exception) {
@@ -222,10 +207,10 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                 val compilerOutCapture = CapturingMessageCollector()
                 val compilerOutputs = arrayListOf<File>()
                 try {
-                   val codeLine = ReplCodeLine(scriptId, 0, scriptSource)
+                    val codeLine = ReplCodeLine(scriptId, 0, scriptSource)
                     try {
-                        val replState = repl.createState()
-                        val replResult = repl.compile(replState, codeLine)
+                        val replState = replCompiler.createState()
+                        val replResult = replCompiler.compile(replState, codeLine)
                         val compiledCode = when (replResult) {
                             is ReplCompileResult.Error -> throw toScriptException(replResult.message, scriptSource, replResult.location)
                             is ReplCompileResult.Incomplete -> throw toScriptException("Incomplete code", scriptSource, null)
@@ -236,7 +221,7 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                             NamedClassBytes(it.path.removeSuffix(".class").replace('/', '.'), it.bytes)
                         }
 
-                        val classLoader = ScriptClassLoader(Thread.currentThread().contextClassLoader).apply {
+                        val classLoader = ScriptClassLoader(this.javaClass.classLoader).apply {
                             classesAsBytes.forEach {
                                 addClass(it.className, it.bytes)
                             }
@@ -253,9 +238,8 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                             throw  ScriptException(exp.message, exp, violations, scriptSource, LANGUAGE_NAME)
                         }
 
-                        ExecutableCode(compiledCode.mainClassName, scriptSource, verification.filteredClasses, verification) { scriptArgs ->
-                            // this is ok to be in the privileged block since it is executed later in a
-                            // non privileged scope.
+                        ExecutableCode(compiledCode.mainClassName, scriptSource, verification.filteredClasses, verification, null, classLoader) { scriptArgs ->
+                            // this is deferred to be executed later, so is not really in priviledged block
                             val completedScript = scriptConstructor.newInstance(*scriptArgs.scriptArgs)
                             resultField.get(completedScript)
                         }
@@ -278,8 +262,25 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         })
     }
 
-    data class ExecutableCode(val className: String, val code: String, val classes: List<NamedClassBytes>, val verification: Cuarentena.VerifyResults, val extraData: Any? = null, val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?) {
+    data class ExecutableCode(val className: String, val code: String,
+                              val classes: List<NamedClassBytes>,
+                              val verification: Cuarentena.VerifyResults,
+                              val extraData: Any? = null,
+                              val scriptClassLoader: ClassLoader,
+                              val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?) {
         val deserAdditionalPolicies = classes.map { PolicyAllowance.ClassLevel.ClassAccess(it.className, setOf(AccessTypes.ref_Class_Instance)) }.toPolicy().toSet()
+
+        fun runWithArgs(args: ScriptArgsWithTypes): Any? {
+            val sm = System.getSecurityManager()
+            sm.checkPermission(SpecialPermission())
+            val ocl = AccessController.doPrivileged(PrivilegedAction { Thread.currentThread().contextClassLoader })
+            return try {
+                AccessController.doPrivileged(PrivilegedAction { Thread.currentThread().contextClassLoader = scriptClassLoader })
+                with (code) { invoker(args) }
+            } finally {
+                AccessController.doPrivileged(PrivilegedAction { Thread.currentThread().contextClassLoader = ocl })
+            }
+        }
     }
 
     data class PreparedScript(val code: ExecutableCode, val scoreFieldAccessed: Boolean)

@@ -3,12 +3,21 @@ package uy.kohesive.elasticsearch.kotlinscript.client
 import org.elasticsearch.action.search.SearchRequestBuilder
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.Client
+import org.elasticsearch.client.Requests
+import org.elasticsearch.cluster.health.ClusterHealthStatus
+import org.elasticsearch.common.Priority
+import org.elasticsearch.common.Strings
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.common.transport.InetSocketTransportAddress
+import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentFactory
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.plugins.Plugin
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
+import org.elasticsearch.transport.client.PreBuiltTransportClient
+import org.hamcrest.Matchers.lessThanOrEqualTo
+import org.junit.Assert
 import org.junit.Before
 import uy.klutter.core.common.toIsoString
 import uy.kohesive.chillamda.Chillambda
@@ -16,7 +25,9 @@ import uy.kohesive.elasticsearch.kotlinscript.KotlinScriptPlugin
 import uy.kohesive.elasticsearch.kotlinscript.common.ConcreteEsKotlinScriptTemplate
 import uy.kohesive.elasticsearch.kotlinscript.common.EsKotlinScriptTemplate
 import java.io.File
+import java.net.InetAddress
 import java.time.Instant
+import java.util.*
 import kotlin.system.measureTimeMillis
 
 
@@ -34,7 +45,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     }
 
     companion object {
-        val INDEX_NAME = "test-client"
+        val INDEX_NAME = "testclient"
     }
 
     private lateinit var client: Client
@@ -183,13 +194,17 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     @Before
     fun createTestIndex() {
         // Delete any previously indexed content.
-        client = ESIntegTestCase.client()
+        val testRemote = System.getProperty("localTestRemoteThingy", "false").equals("true", ignoreCase = true)
+        client = if (testRemote) {
+            PreBuiltTransportClient(Settings.EMPTY).addTransportAddress(InetSocketTransportAddress(InetAddress.getLocalHost(), 9300))
+        } else {
+            ESIntegTestCase.client()
+        }
 
         if (client.admin().indices().prepareExists(INDEX_NAME).get().isExists) {
             client.admin().indices().prepareDelete(INDEX_NAME).get()
         }
 
-        val bulk = client.prepareBulk()
 
         client.admin().indices().prepareCreate(INDEX_NAME).setSource("""
                {
@@ -219,6 +234,9 @@ class ScriptExtensionsTests : ESIntegTestCase() {
                }
         """).execute().actionGet()
 
+        waitForGreen(INDEX_NAME)
+
+        val bulk = client.prepareBulk()
         (1..5).forEach { i ->
             bulk.add(client.prepareIndex()
                     .setIndex(INDEX_NAME)
@@ -243,10 +261,17 @@ class ScriptExtensionsTests : ESIntegTestCase() {
 
         bulk.execute().actionGet()
 
-        flushAndRefresh(INDEX_NAME)
-        ensureGreen(INDEX_NAME)
+        client.admin().indices().prepareFlush(INDEX_NAME).execute().actionGet()
+        client.admin().indices().prepareRefresh(INDEX_NAME).execute().actionGet()
+        waitForGreen(INDEX_NAME)
     }
 
+    fun waitForGreen(index: String) {
+        val result = client.admin().cluster().prepareHealth(index).setWaitForGreenStatus().setTimeout("1m").execute().actionGet()
+        if (result.isTimedOut) {
+            fail("Timed out waiting for index to be green")
+        }
+    }
 
     fun SearchHit.printHitSourceField(fieldName: String) {
         println("${id} => ${sourceAsMap()["title"].toString()}")

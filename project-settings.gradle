@@ -1,0 +1,21 @@
+ext {
+    projectUrl ="https://github.com/kohesive/elasticsearch-lang-kotlin"
+    projectName = "Elasticsearch-Lang-Kotlin"
+    projectDescription = 'Kotlin scripting for Elasticsearch, with text and binary scripting.'
+    projectInception = '2017'
+
+    sonatypePackageGroup = "uy.kohesive"
+    scmUrl = "git://github.com:kohesive/elasticsearch-lang-kotlin.git"
+    scmGitFile = "scm:git@github.com:kohesive/elasticsearch-lang-kotlin.git"
+
+    pomProjectName = projectName
+    groupName = project.group
+
+    licenseName = "MIT"
+    licenseUrl = "$projectUrl/blob/master/LICENSE"
+
+    organisation = groupName
+    primaryEmail = "oss@kohesive.io"
+
+    binTrayRepo = "kohesive"
+}

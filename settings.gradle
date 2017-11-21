@@ -1,3 +1,9 @@
 include 'elasticsearch-lang-kotlin-common',
         'elasticsearch-lang-kotlin-plugin',
         'elasticsearch-lang-kotlin-client'
+
+/*
+includeBuild '../kohesive-cuarentena'
+includeBuild '../kohesive-chillambda'
+includeBuild '../kohesive-keplin'
+*/
