@@ -3,21 +3,14 @@ package uy.kohesive.elasticsearch.kotlinscript.client
 import org.elasticsearch.action.search.SearchRequestBuilder
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.Client
-import org.elasticsearch.client.Requests
-import org.elasticsearch.cluster.health.ClusterHealthStatus
-import org.elasticsearch.common.Priority
-import org.elasticsearch.common.Strings
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.transport.InetSocketTransportAddress
-import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentFactory
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.plugins.Plugin
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.test.ESIntegTestCase
 import org.elasticsearch.transport.client.PreBuiltTransportClient
-import org.hamcrest.Matchers.lessThanOrEqualTo
-import org.junit.Assert
 import org.junit.Before
 import uy.klutter.core.common.toIsoString
 import uy.kohesive.chillamda.Chillambda
@@ -27,7 +20,6 @@ import uy.kohesive.elasticsearch.kotlinscript.common.EsKotlinScriptTemplate
 import java.io.File
 import java.net.InetAddress
 import java.time.Instant
-import java.util.*
 import kotlin.system.measureTimeMillis
 
 
