@@ -20,7 +20,7 @@ subprojects {
     apply from: "$rootDir/gradle/idea.gradle"
 
     if (project.name != "elasticsearch-lang-kotlin-plugin") {
-        apply from: "$rootDir/gradle/sonatype-subproj.gradle"
+    apply from: "$rootDir/gradle/sonatype-subproj.gradle"
         apply from: "$rootDir/gradle/bintray.gradle"
     }
 
