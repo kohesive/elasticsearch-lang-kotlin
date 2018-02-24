@@ -51,8 +51,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     }
 
     override fun nodePlugins(): Collection<Class<out Plugin>> =
-            listOf(KotlinScriptPlugin::class.java,
-                    ReindexPlugin::class.java)
+            listOf(KotlinScriptPlugin::class.java, ReindexPlugin::class.java)
 
     fun testNormalQuery() {
 

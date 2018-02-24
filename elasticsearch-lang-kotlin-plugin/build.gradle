@@ -17,6 +17,7 @@ apply plugin: 'elasticsearch.esplugin'
 licenseFile = rootProject.file('LICENSE')
 noticeFile = rootProject.file('NOTICE')
 
+
 esplugin {
     name 'lang-kotlin'
     description 'Kotlin language support both for text and lambda (binary) based scripts'
@@ -45,32 +46,32 @@ integTest.enabled = false
 ext.projectSubstitutions = [:]
 
 dependencies {
+    // ES plugin plugin kills tertiary dependencies so include each manually
+
     compile(project(':elasticsearch-lang-kotlin-common'))
 
-    compile(group: 'uy.kohesive.keplin', name: 'keplin-util', version: version_keplin) {
-        exclude group: 'org.jetbrains.kotlin'
-    }
+    compile group: 'uy.kohesive.keplin', name: 'keplin-util', version: version_keplin
 
-    compile(group: 'uy.kohesive.cuarentena', name: 'cuarentena', version: version_cuarentena) {
-        exclude group: 'org.jetbrains.kotlin'
-    }
-
+    compile group: 'uy.kohesive.cuarentena', name: 'cuarentena', version: version_cuarentena
+    compile group: 'uy.kohesive.cuarentena', name: 'cuarentena-policy', version: version_cuarentena
+    compile group: 'uy.kohesive.cuarentena', name: 'cuarentena-painless-policy', version: version_cuarentena
+    compile group: 'com.zackehh', name: 'siphash', version: version_cuarentena_siphash
+    compile group: 'org.apache.commons', name: 'commons-lang3', version: version_cuarentena_commons_lang
     compile group: 'uy.kohesive.chillambda', name: 'chillambda', version: version_chillambda
+    compile group: 'org.ow2.asm', name: 'asm-debug-all', version: version_cuarentena_asm
 
     compile group: 'org.jetbrains.kotlin', name: 'kotlin-compiler-embeddable', version: version_kotlin
-
-
-    compile(group: 'org.jetbrains.kotlin', name: "kotlin-stdlib-$version_kotlin_stdlib_type", version: version_kotlin) {
-        exclude group: 'org.jetbrains', module: 'annotations'
-    }
-    compile(group: 'org.jetbrains.kotlin', name: "kotlin-reflect", version: version_kotlin) {
-        exclude group: 'org.jetbrains', module: 'annotations'
-    }
-
+    compile group: 'org.jetbrains.kotlin', name: "kotlin-stdlib-$version_kotlin_stdlib_type", version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: "kotlin-stdlib-jdk7", version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: "kotlin-stdlib", version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: "kotlin-script-runtime", version: version_kotlin
+    compile group: 'org.jetbrains.kotlin', name: "kotlin-reflect", version: version_kotlin
 
     compile group: 'org.elasticsearch', name: 'elasticsearch', version: version_elasticsearch
 
     compile group: 'uy.kohesive.klutter', name: 'klutter-conversion', version: version_klutter
+    compile group: 'uy.kohesive.klutter', name: 'klutter-reflect', version: version_klutter
+    compile group: 'uy.kohesive.klutter', name: 'klutter-core', version: version_klutter
 
     // at runtime we use the ones within Elasticsearch
     testCompile group: 'org.codelibs.elasticsearch.module', name: 'ingest-common', version: version_elasticsearch

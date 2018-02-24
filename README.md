@@ -110,14 +110,16 @@ of the engine is more BETA.
 
 |Plugin Version|Elasticsearch Version|Kotlin Version|
 |--------------|---------------------|--------------|
-|Version 1.0.0-ES-5.6.4-BETA-03|**Elasticsearch 5.6.4**|**Kotlin 1.51**|
+|Version 1.0.0-ES-5.6.7-BETA-05|**Elasticsearch 5.6.7**|**Kotlin 1.2.21**|current|
+
+Releases for other versions of Elasticsearch will come soon, 6.x onwards requires a significant refactoring.
 
 More information is available under [each release](https://github.com/kohesive/elasticsearch-lang-kotlin/releases).
 
 Install on server using (replace version number with the one you intend to use):
 
 ```
-bin/elasticsearch-plugin install https://github.com/kohesive/elasticsearch-lang-kotlin/releases/download/v1.0.0-ES-5.6.4-BETA-03/lang-kotlin-1.0.0-ES-5.6.4-BETA-03.zip
+bin/elasticsearch-plugin install https://github.com/kohesive/elasticsearch-lang-kotlin/releases/download/v1.0.0-ES-5.6.7-BETA-05/lang-kotlin-1.0.0-ES-5.6.7-BETA-05.zip
 ```
 
 **NOTE:**  *You must accept the security permissions, these are only used for the compiler and not scripts which do not run with any extra privileges.*
@@ -133,7 +135,7 @@ script.engine.kotlin.inline: true
 
 For client library containing extension functions for Kotlin, use the follow artifact from Gradle or Maven:
 ```
-uy.kohesive.elasticsearch:elasticsearch-lang-kotlin-client:1.0.0-BETA-03.02
+uy.kohesive.elasticsearch:elasticsearch-lang-kotlin-client:1.0.0-BETA-05
 ```
 
 _(note that the version number might slightly differ as updates are added to the client that do not require a new server plugin update)_
