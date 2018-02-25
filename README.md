@@ -1,3 +1,6 @@
+[![GitHub release](https://img.shields.io/github/release/kohesive/elasticsearch-lang-kotlin.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/releases) [![Kotlin](https://img.shields.io/badge/kotlin-1.2.21-blue.svg)](http://kotlinlang.org)  [![Maven Central](https://img.shields.io/maven-central/v/uy.kohesive.elasticsearch/elasticsearch-lang-kotlin-client.svg)](https://mvnrepository.com/artifact/uy.kohesive.elasticsearch) [![CircleCI branch](https://img.shields.io/circleci/project/kohesive/elasticsearch-lang-kotlin/master.svg)](https://circleci.com/gh/kohesive/elasticsearch-lang-kotlin/tree/master) [![Issues](https://img.shields.io/github/issues/kohesive/elasticsearch-lang-kotlin.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/issues?q=is%3Aopen) [![DUB](https://img.shields.io/dub/l/vibe-d.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/blob/master/LICENSE) [![Kotlin Slack](https://img.shields.io/badge/chat-kotlin%20slack%20%23kohesive-orange.svg)](http://kotlinslackin.herokuapp.com)
+
+
 # Elasticsearch-Lang-Kotlin
 
 Kotlin scripting language for Elasticsearch.  This includes both text scripts and also
