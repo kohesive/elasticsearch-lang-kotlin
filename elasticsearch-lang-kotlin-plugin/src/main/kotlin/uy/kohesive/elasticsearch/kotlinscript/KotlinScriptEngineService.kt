@@ -3,6 +3,8 @@ package uy.kohesive.elasticsearch.kotlinscript
 import org.apache.lucene.index.LeafReaderContext
 import org.apache.lucene.search.Scorer
 import org.elasticsearch.SpecialPermission
+import org.elasticsearch.common.component.AbstractComponent
+import org.elasticsearch.common.io.FastStringReader
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.script.*
 import org.elasticsearch.search.lookup.LeafSearchLookup
@@ -36,8 +38,12 @@ import java.security.AccessController
 import java.security.PrivilegedAction
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.reflect.KClass
 
-class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
+class KotlinScriptEngineService(val settings: Settings,
+                                val contexts: MutableCollection<ScriptContext<*>>)
+    : AbstractComponent(settings), ScriptEngine {
+
     companion object {
         val LANGUAGE_NAME = KotlinScriptPlugin.LANGUAGE_NAME
         val uniqueScriptId: AtomicInteger = AtomicInteger(0)
@@ -59,20 +65,33 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         AccessController.doPrivileged(PrivilegedAction { KotlinScriptConfiguredChillambda.chillambda })
     }
 
-    val replCompiler by lazy {
+
+    val replCompilers = mutableMapOf<KClass<out Any>, GenericReplCompiler>().apply {
+        for (context in contexts) {
+            val templateClass = when (context.instanceClazz) {
+                FilterScript::class.java -> EsKotlinScriptTemplate::class
+                SearchScript::class.java -> EsKotlinScriptTemplate::class
+                ExecutableScript::class.java -> EsKotlinScriptTemplate::class
+                else -> EsKotlinScriptTemplate::class
+            }
+            put(context.instanceClazz.kotlin, makeReplCompiler(templateClass))
+        }
+    }
+
+    fun <T: Any> makeReplCompiler(template: KClass<T>): GenericReplCompiler {
         sm.checkPermission(SpecialPermission())
-        AccessController.doPrivileged(PrivilegedAction {
-            val scriptDefinition = KotlinScriptDefinitionEx(EsKotlinScriptTemplate::class, makeArgs())
+        return AccessController.doPrivileged(PrivilegedAction {
+            val scriptDefinition = KotlinScriptDefinitionEx(template, makeArgs())
             val additionalClasspath = emptyList<File>()
             val moduleName = "kotlin-script-module-${uniqueSessionId}"
             val messageCollector = compilerMessages
             val compilerConfig = CompilerConfiguration().apply {
                 addJvmClasspathRoots(PathUtil.getJdkClassesRootsFromCurrentJre())
                 addJvmClasspathRoots(findRequiredScriptingJarFiles(scriptDefinition.template,
-                        includeScriptEngine = false,
-                        includeKotlinCompiler = false,
-                        includeStdLib = true,
-                        includeRuntime = true))
+                    includeScriptEngine = false,
+                    includeKotlinCompiler = false,
+                    includeStdLib = true,
+                    includeRuntime = true))
                 addJvmClasspathRoots(additionalClasspath)
                 put(CommonConfigurationKeys.MODULE_NAME, moduleName)
                 put<MessageCollector>(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector)
@@ -82,100 +101,16 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
         })
     }
 
-    override fun getExtension(): String = LANGUAGE_NAME
-
     override fun getType(): String = LANGUAGE_NAME
 
-    override fun executable(compiledScript: CompiledScript, vars: Map<String, Any>?): ExecutableScript {
-        return ExecutableKotlin(compiledScript, vars)
-    }
 
-    class ExecutableKotlin(val compiledScript: CompiledScript, val params: Map<String, Any>?) : ExecutableScript {
-        val _mutableVars: MutableMap<String, Any> = HashMap<String, Any>(params)
-        val sm = System.getSecurityManager()
 
-        override fun run(): Any? {
-            @Suppress("UNCHECKED_CAST")
-            val ctx = _mutableVars.get("ctx") as? MutableMap<String, Any> ?: hashMapOf()
-            val args = makeArgs(variables = _mutableVars, ctx = ctx)
-            val executable = compiledScript.compiled() as PreparedScript
-            return executable.code.runWithArgs(args)
-        }
-
-        override fun setNextVar(name: String, value: Any) {
-            _mutableVars.put(name, value)
-        }
-
-    }
-
-    override fun search(compiledScript: CompiledScript, lookup: SearchLookup, vars: Map<String, Any>?): SearchScript {
-        return object : SearchScript {
-            override fun needsScores(): Boolean {
-                return (compiledScript.compiled() as PreparedScript).scoreFieldAccessed
-            }
-
-            override fun getLeafSearchScript(context: LeafReaderContext?): LeafSearchScript {
-                return LeafSearchScriptKotlin(compiledScript, vars, lookup.getLeafSearchLookup(context))
-            }
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    class LeafSearchScriptKotlin(val compiledScript: CompiledScript, val vars: Map<String, Any>?, val lookup: LeafSearchLookup) : LeafSearchScript {
-        val _mutableVars: MutableMap<String, Any> = HashMap<String, Any>(vars).apply {
-            putAll(lookup.asMap())
-        }
-
-        val sm = System.getSecurityManager()
-        var _doc = lookup.doc() as MutableMap<String, MutableList<Any>>
-        var _aggregationValue: Any? = null
-        var _scorer: Scorer? = null
-
-        // TODO:  implement something for _score and ctx standard var names
-
-        override fun run(): Any? {
-            val score = _scorer?.score()?.toDouble() ?: 0.0
-            val ctx = _mutableVars.get("ctx") as? MutableMap<String, Any> ?: hashMapOf()
-            val args = makeArgs(_mutableVars, score, _doc, ctx, _aggregationValue)
-            val executable = compiledScript.compiled() as PreparedScript
-            return executable.code.runWithArgs(args)
-        }
-
-        override fun setScorer(scorer: Scorer?) {
-            _scorer = scorer
-        }
-
-        override fun setNextVar(name: String, value: Any) {
-            _mutableVars.put(name, value)
-        }
-
-        override fun setNextAggregationValue(value: Any?) {
-            _aggregationValue = value
-        }
-
-        override fun runAsDouble(): Double {
-            return run() as Double
-        }
-
-        override fun runAsLong(): Long {
-            return run() as Long
-        }
-
-        override fun setSource(source: MutableMap<String, Any>?) {
-            lookup.source().setSource(source)
-        }
-
-        override fun setDocument(doc: Int) {
-            lookup.setDocument(doc)
-        }
-    }
-
-    override fun close() {
-    }
-
-    val scriptTemplateConstructor = ::ConcreteEsKotlinScriptTemplate
-
-    override fun compile(scriptName: String?, scriptSource: String, params: Map<String, String>?): Any {
+    override fun <FactoryType> compile(
+        scriptName: String,
+        scriptSource: String,
+        context: ScriptContext<FactoryType>,
+        params: Map<String, String>
+    ): FactoryType {
         sm.checkPermission(SpecialPermission())
         return AccessController.doPrivileged(PrivilegedAction
         {
@@ -203,14 +138,17 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
                     else throw ScriptException(ex.message ?: "unknown error", ex, emptyList(), scriptSource, LANGUAGE_NAME)
                 }
             } else {
+                val compiler = replCompilers.get(context.instanceClazz.kotlin)
+                        ?:  throw IllegalArgumentException("Kotlin engine does not know how to handle context [" + context.name + "]")
+
                 val scriptId = uniqueScriptId.incrementAndGet()
                 val compilerOutCapture = CapturingMessageCollector()
                 val compilerOutputs = arrayListOf<File>()
                 try {
                     val codeLine = ReplCodeLine(scriptId, 0, scriptSource)
                     try {
-                        val replState = replCompiler.createState()
-                        val replResult = replCompiler.compile(replState, codeLine)
+                        val replState = compiler.createState()
+                        val replResult = compiler.compile(replState, codeLine)
                         val compiledCode = when (replResult) {
                             is ReplCompileResult.Error -> throw toScriptException(replResult.message, scriptSource, replResult.location)
                             is ReplCompileResult.Incomplete -> throw toScriptException("Incomplete code", scriptSource, null)
@@ -253,37 +191,44 @@ class KotlinScriptEngineService(val settings: Settings) : ScriptEngineService {
             }
 
             val scoreAccessPossibilities = listOf(
-                    PolicyAllowance.ClassLevel.ClassPropertyAccess(EsKotlinScriptTemplate::class.java.canonicalName, "_score", "D", setOf(AccessTypes.read_Class_Instance_Property))
+                PolicyAllowance.ClassLevel.ClassPropertyAccess(EsKotlinScriptTemplate::class.java.canonicalName, "_score", "D", setOf(AccessTypes.read_Class_Instance_Property))
             ).toPolicy()
             val isScoreAccessed = executableCode.verification.scanResults.allowances.any {
                 it.asCheckStrings(true).any { it in scoreAccessPossibilities }
             }
-            PreparedScript(executableCode, isScoreAccessed)
+
+            val preparedScript = PreparedScript(executableCode, isScoreAccessed)
+
+            if (context.instanceClazz == SearchScript::class.java) {
+                val factory = SearchScript.Factory { p, lookup ->
+                    object : SearchScript.LeafFactory {
+                        override fun newInstance(context: LeafReaderContext): SearchScript {
+                            return KotlinScriptImpl(preparedScript, p, lookup, context)
+                        }
+
+                        override fun needs_score(): Boolean {
+                            return preparedScript.scoreFieldAccessed
+                        }
+                    }
+                }
+                context.factoryClazz.cast(factory)
+            } else if (context.instanceClazz == ExecutableScript::class.java) {
+                val factory = ExecutableScript.Factory { p ->
+                    KotlinScriptImpl(preparedScript, p, null, null)
+                }
+                context.factoryClazz.cast(factory)
+            } else {
+                throw IllegalStateException("Unsure how to handle this search instance type")
+            }
         })
     }
 
-    data class ExecutableCode(val className: String, val code: String,
-                              val classes: List<NamedClassBytes>,
-                              val verification: Cuarentena.VerifyResults,
-                              val extraData: Any? = null,
-                              val scriptClassLoader: ClassLoader,
-                              val invoker: ExecutableCode.(ScriptArgsWithTypes) -> Any?) {
-        val deserAdditionalPolicies = classes.map { PolicyAllowance.ClassLevel.ClassAccess(it.className, setOf(AccessTypes.ref_Class_Instance)) }.toPolicy().toSet()
-
-        fun runWithArgs(args: ScriptArgsWithTypes): Any? {
-            val sm = System.getSecurityManager()
-            sm.checkPermission(SpecialPermission())
-            val ocl = AccessController.doPrivileged(PrivilegedAction { Thread.currentThread().contextClassLoader })
-            return try {
-                AccessController.doPrivileged(PrivilegedAction { Thread.currentThread().contextClassLoader = scriptClassLoader })
-                with (code) { invoker(args) }
-            } finally {
-                AccessController.doPrivileged(PrivilegedAction { Thread.currentThread().contextClassLoader = ocl })
-            }
-        }
+    override fun close() {
     }
 
-    data class PreparedScript(val code: ExecutableCode, val scoreFieldAccessed: Boolean)
+    val scriptTemplateConstructor = ::ConcreteEsKotlinScriptTemplate
+
+
 }
 
 fun toScriptException(message: String, code: String, location: CompilerMessageLocation?): ScriptException {

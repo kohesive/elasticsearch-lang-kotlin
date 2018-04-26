@@ -1,5 +1,6 @@
 package uy.kohesive.elasticsearch.kotlinscript
 
+import org.elasticsearch.index.fielddata.ScriptDocValues
 import org.jetbrains.kotlin.cli.common.repl.ScriptArgsWithTypes
 import kotlin.reflect.KClass
 
@@ -9,7 +10,7 @@ val EMPTY_SCRIPT_ARGS: Array<out Any?> = makeArgs().scriptArgs  // must be after
 
 fun makeArgs(variables: Map<String, Any> = emptyMap(),
              score: Double = 0.0,
-             doc: MutableMap<String, MutableList<Any>> = hashMapOf(),
+             doc: Map<String, List<Any?>> = hashMapOf(),
              ctx: MutableMap<String, Any> = hashMapOf(),
              value: Any? = null): ScriptArgsWithTypes {
     return ScriptArgsWithTypes(arrayOf(variables, doc, ctx, value, score), SCRIPT_ARGS_TYPES)

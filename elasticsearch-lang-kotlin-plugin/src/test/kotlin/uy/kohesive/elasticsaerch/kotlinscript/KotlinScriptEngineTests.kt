@@ -9,6 +9,8 @@ import org.elasticsearch.common.SuppressForbidden
 import org.elasticsearch.common.bytes.BytesReference
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.xcontent.XContentFactory
+import org.elasticsearch.common.xcontent.XContentType
+import org.elasticsearch.index.fielddata.ScriptDocValues
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.ingest.common.IngestCommonPlugin
 import org.elasticsearch.plugins.Plugin
@@ -32,8 +34,8 @@ class KotlinScriptEngineTests : ESIntegTestCase() {
     override fun nodeSettings(nodeOrdinal: Int): Settings {
         val temp = super.nodeSettings(nodeOrdinal)
         val builder = Settings.builder().apply {
-            temp.asMap.forEach {
-                put(it.key, it.value)
+            temp.keySet().forEach { key ->
+                put(key, temp[key])
             }
             //  put("script.painless.regex.enabled", true)
         }
@@ -99,8 +101,10 @@ class KotlinScriptEngineTests : ESIntegTestCase() {
         }
 
         val mockContext = ConcreteEsKotlinScriptTemplate(param = emptyMap(),
-                doc = mutableMapOf("badContent" to mutableListOf<Any>("category:  History, Science, Fish")),
-                ctx = mutableMapOf(), _value = 0, _score = 0.0)
+                doc = mapOf("badContent" to MockStringDocValues(listOf("category:  History, Science, Fish")) as ScriptDocValues<*>),
+                ctx = mutableMapOf(),
+                _value = 0,
+                _score = 0.0)
 
         val expectedResults = listOf("category: history", "category: science", "category: fish")
 
@@ -172,7 +176,7 @@ class KotlinScriptEngineTests : ESIntegTestCase() {
                     }
                   }
                }
-        """).execute().actionGet()
+        """, XContentType.JSON).execute().actionGet()
 
         (1..5).forEach { i ->
             bulk.add(client.prepareIndex()
@@ -232,7 +236,7 @@ class KotlinScriptEngineTests : ESIntegTestCase() {
 
 
     fun SearchHit.printHitSourceField(fieldName: String) {
-        println("${id} => ${sourceAsMap()["title"].toString()}")
+        println("${id} => ${sourceAsMap["title"].toString()}")
     }
 
     fun SearchHit.printHitField(fieldName: String) {

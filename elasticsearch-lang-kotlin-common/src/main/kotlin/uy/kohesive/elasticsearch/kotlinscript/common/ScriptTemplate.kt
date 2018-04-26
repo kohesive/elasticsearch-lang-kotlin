@@ -1,11 +1,18 @@
 package uy.kohesive.elasticsearch.kotlinscript.common
 
+import org.elasticsearch.index.fielddata.ScriptDocValues
+import org.joda.time.MutableDateTime
+import uy.klutter.conversion.ConverterSet
+import uy.klutter.conversion.SelfRegisteringConverters
 import uy.klutter.conversion.TypeConversionConfig.defaultConverter
+import uy.klutter.conversion.TypeConverters
+import uy.klutter.reflect.isAssignableFrom
 import java.lang.reflect.Type
+import java.time.Instant
 
 
 open class ConcreteEsKotlinScriptTemplate(param: Map<String, Any>,
-                                          doc: MutableMap<String, MutableList<Any>>,
+                                          doc: Map<String, List<Any?>>,
                                           ctx: MutableMap<String, Any>,
                                           _value: Any?,
                                           _score: Double) : EsKotlinScriptTemplate(param, doc, ctx, _value, _score)
@@ -62,10 +69,63 @@ open class ConcreteEsKotlinScriptTemplate(param: Map<String, Any>,
  */
 @Suppress("UNCHECKED_CAST")
 abstract class EsKotlinScriptTemplate(val param: Map<String, Any>,
-                                      val doc: MutableMap<String, MutableList<Any>>,
+                                      val doc: Map<String, List<Any?>>,
                                       val ctx: MutableMap<String, Any>,
                                       val _value: Any?,
                                       val _score: Double) {
+    companion object {
+       val converter = defaultConverter.apply {
+            ESConverters().registerInto(this)
+        }
+    }
+
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+    class ESConverters : SelfRegisteringConverters,
+        ConverterSet {
+        override fun registerInto(conversion: TypeConverters) {
+            conversion.register(this)
+        }
+
+        override fun predicate(fromType: Type, toType: Type): Boolean {
+            return when {
+                fromType == Long::class.java || fromType == java.lang.Long::class.java -> when (toType) {
+                    MutableDateTime::class.java -> true
+                    else -> false
+                }
+                MutableDateTime::class.isAssignableFrom(fromType) -> when (toType) {
+                    Long::class.java, java.lang.Long::class.java -> true
+                    Instant::class.java -> true
+                    else -> false
+                }
+                Instant::class.isAssignableFrom(fromType) -> when (toType) {
+                    MutableDateTime::class.java -> true
+                    else -> false
+                }
+                else -> false
+            }
+        }
+
+        override fun convert(fromType: Type, toType: Type, value: Any): Any {
+            return when (value) {
+                is Long -> when (toType) {
+                    MutableDateTime::class.java -> MutableDateTime(value.toLong())
+                    else -> throw IllegalStateException("Invalid Long conversion for ${fromType} to ${toType}")
+                }
+                is MutableDateTime -> when (toType) {
+                    Long::class.java, java.lang.Long::class.java -> value.toInstant().millis
+                    Instant::class.java -> Instant.ofEpochMilli(value.toInstant().millis)
+                    else -> throw IllegalStateException("Invalid MutableDateTime conversion for ${fromType} to ${toType}")
+                }
+                is Instant -> when (toType) {
+                    MutableDateTime::class.java -> MutableDateTime(value.toEpochMilli())
+                    else -> throw IllegalStateException("Invalid Instant conversion for ${fromType} to ${toType}")
+                }
+                else -> throw IllegalStateException("Cannot convert ${fromType} to ${toType}")
+            }
+        }
+
+    }
+
     @Suppress("UNCHECKED_CAST")
     val _source: MutableMap<String, Any> by lazy(LazyThreadSafetyMode.NONE) {
         (ctx.get("_source") ?: param.get("_source") ?: throw IllegalStateException("_source is not availalbe in this context")) as MutableMap<String, Any>
@@ -80,7 +140,7 @@ abstract class EsKotlinScriptTemplate(val param: Map<String, Any>,
     }
 
     fun <R : Any> convert(value: Any, toType: Type): R {
-        return defaultConverter.convertValue<Any, R>(value::class.java, toType, value) as R
+        return converter.convertValue<Any, R>(value::class.java, toType, value) as R
     }
 
     inline fun <reified T : Any> Any?.asList(): List<T> {

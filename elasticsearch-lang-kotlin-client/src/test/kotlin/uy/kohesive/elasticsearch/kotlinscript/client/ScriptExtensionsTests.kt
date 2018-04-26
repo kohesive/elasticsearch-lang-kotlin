@@ -4,8 +4,10 @@ import org.elasticsearch.action.search.SearchRequestBuilder
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.Client
 import org.elasticsearch.common.settings.Settings
-import org.elasticsearch.common.transport.InetSocketTransportAddress
+import org.elasticsearch.common.transport.TransportAddress
 import org.elasticsearch.common.xcontent.XContentFactory
+import org.elasticsearch.common.xcontent.XContentType
+import org.elasticsearch.index.fielddata.ScriptDocValues
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.reindex.ReindexPlugin
 import org.elasticsearch.index.reindex.UpdateByQueryAction
@@ -32,10 +34,10 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     override fun nodeSettings(nodeOrdinal: Int): Settings {
         val temp = super.nodeSettings(nodeOrdinal)
         val builder = Settings.builder().apply {
-            temp.asMap.forEach {
-                put(it.key, it.value)
+            temp.keySet().forEach { key ->
+                put(key, temp[key])
             }
-            //put("script.painless.regex.enabled", true)
+            //  put("script.painless.regex.enabled", true)
         }
         return builder.build()
     }
@@ -231,8 +233,8 @@ class ScriptExtensionsTests : ESIntegTestCase() {
         }
 
         val mockContext = ConcreteEsKotlinScriptTemplate(param = emptyMap(),
-                doc = mutableMapOf("badContent" to mutableListOf<Any>("category:  History, Science, Fish")),
-                ctx = mutableMapOf(), _value = 0, _score = 0.0)
+            doc = mapOf("badContent" to MockStringDocValues(listOf("category:  History, Science, Fish")) as ScriptDocValues<*>),
+            ctx = mutableMapOf(), _value = 0, _score = 0.0)
 
         val expectedResults = listOf("category: history", "category: science", "category: fish")
 
@@ -253,7 +255,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
         // Delete any previously indexed content.
         val testRemote = System.getProperty("localTestRemoteThingy", "false").equals("true", ignoreCase = true)
         client = if (testRemote) {
-            PreBuiltTransportClient(Settings.EMPTY, transportClientPlugins()).addTransportAddress(InetSocketTransportAddress(InetAddress.getLocalHost(), 9300))
+            PreBuiltTransportClient(Settings.EMPTY, transportClientPlugins()).addTransportAddress(TransportAddress(InetAddress.getLocalHost(), 9300))
         } else {
             ESIntegTestCase.client()
         }
@@ -289,7 +291,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
                     }
                   }
                }
-        """).execute().actionGet()
+        """, XContentType.JSON).execute().actionGet()
 
         waitForGreen(INDEX_NAME)
 
@@ -331,7 +333,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     }
 
     fun SearchHit.printHitSourceField(fieldName: String) {
-        println("${id} => ${sourceAsMap()["title"].toString()}")
+        println("${id} => ${sourceAsMap["title"].toString()}")
     }
 
     fun SearchHit.printHitField(fieldName: String) {
