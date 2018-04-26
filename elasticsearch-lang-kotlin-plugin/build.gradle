@@ -10,7 +10,7 @@ if (verDivider > 0) {
 }
 version = "$verPrefix-ES-$version_elasticsearch-$verSuffix"
 
-println("kepling elasticsearch kotlinscript lib version will be $version")
+println("elasticsearch plugin version will be $version")
 
 apply plugin: 'elasticsearch.esplugin'
 
