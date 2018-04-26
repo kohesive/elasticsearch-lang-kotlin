@@ -111,11 +111,10 @@ of the engine is more BETA.
 
 # Server Installation:
 
-|Plugin Version|Elasticsearch Version|Kotlin Version|
-|--------------|---------------------|--------------|
-|Version 1.0.0-ES-5.6.7-BETA-05|**Elasticsearch 5.6.7**|**Kotlin 1.2.21**|current|
-
-Releases for other versions of Elasticsearch will come soon, 6.x onwards requires a significant refactoring.
+|Plugin Version|Client Extension Version|Elasticsearch Version|Kotlin Version|Notes|
+|--------------|---------------------|--------------|----------|---------|
+|1.0.0-ES-5.6.7-BETA-06|1.0.0-BETA-06|**Elasticsearch 5.6.7**|**Kotlin 1.2.21**| |
+|1.0.0-ES-6.2.4-BETA-07|1.0.0-BETA-07|**Elasticsearch 6.2.4**|**Kotlin 1.2.31**|current|
 
 More information is available under [each release](https://github.com/kohesive/elasticsearch-lang-kotlin/releases).
 
