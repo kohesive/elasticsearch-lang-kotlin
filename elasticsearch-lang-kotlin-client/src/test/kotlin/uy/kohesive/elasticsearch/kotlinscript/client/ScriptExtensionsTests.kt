@@ -49,7 +49,7 @@ class ScriptExtensionsTests : ESIntegTestCase() {
     private lateinit var client: Client
 
     override fun transportClientPlugins(): Collection<Class<out Plugin>> {
-        return listOf(ReindexPlugin::class.java)
+        return emptyList() // listOf(ReindexPlugin::class.java)
     }
 
     override fun nodePlugins(): Collection<Class<out Plugin>> =

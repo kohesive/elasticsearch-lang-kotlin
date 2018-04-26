@@ -126,10 +126,12 @@ bin/elasticsearch-plugin install https://github.com/kohesive/elasticsearch-lang-
 
 **NOTE:**  *You must accept the security permissions, these are only used for the compiler and not scripts which do not run with any extra privileges.*
 
-A Elasticsearch cluster must enable this setting to use inline Kotlin scripts (and also for Lambdas which appear to be inline scripts to Elasticsearch):
+For Elasticsearch versions 5.x, a cluster must enable this setting to use inline Kotlin scripts (and also for Lambdas which appear to be inline scripts to Elasticsearch):
 ```
 script.engine.kotlin.inline: true
 ```
+
+For 6.x this is not required and will result in an error.
 
 *(Read [script security settings](https://www.elastic.co/guide/en/elasticsearch/reference/6.2/modules-scripting-security.html) for more information.)*
 
