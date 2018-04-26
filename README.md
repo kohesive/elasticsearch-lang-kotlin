@@ -1,4 +1,4 @@
-[![GitHub release](https://img.shields.io/github/release/kohesive/elasticsearch-lang-kotlin.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/releases) [![Kotlin](https://img.shields.io/badge/kotlin-1.2.21-blue.svg)](http://kotlinlang.org)  [![Maven Central](https://img.shields.io/maven-central/v/uy.kohesive.elasticsearch/elasticsearch-lang-kotlin-client.svg)](https://mvnrepository.com/artifact/uy.kohesive.elasticsearch) [![CircleCI branch](https://img.shields.io/circleci/project/kohesive/elasticsearch-lang-kotlin/master.svg)](https://circleci.com/gh/kohesive/elasticsearch-lang-kotlin/tree/master) [![Issues](https://img.shields.io/github/issues/kohesive/elasticsearch-lang-kotlin.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/issues?q=is%3Aopen) [![DUB](https://img.shields.io/dub/l/vibe-d.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/blob/master/LICENSE) [![Kotlin Slack](https://img.shields.io/badge/chat-kotlin%20slack%20%23kohesive-orange.svg)](http://kotlinslackin.herokuapp.com)
+[![GitHub release](https://img.shields.io/github/release/kohesive/elasticsearch-lang-kotlin.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/releases) [![Kotlin](https://img.shields.io/badge/kotlin-1.2.31-blue.svg)](http://kotlinlang.org)  [![Maven Central](https://img.shields.io/maven-central/v/uy.kohesive.elasticsearch/elasticsearch-lang-kotlin-client.svg)](https://mvnrepository.com/artifact/uy.kohesive.elasticsearch) [![CircleCI branch](https://img.shields.io/circleci/project/kohesive/elasticsearch-lang-kotlin/master.svg)](https://circleci.com/gh/kohesive/elasticsearch-lang-kotlin/tree/master) [![Issues](https://img.shields.io/github/issues/kohesive/elasticsearch-lang-kotlin.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/issues?q=is%3Aopen) [![DUB](https://img.shields.io/dub/l/vibe-d.svg)](https://github.com/kohesive/elasticsearch-lang-kotlin/blob/master/LICENSE) [![Kotlin Slack](https://img.shields.io/badge/chat-kotlin%20slack%20%23kohesive-orange.svg)](http://kotlinslackin.herokuapp.com)
 
 
 # Elasticsearch-Lang-Kotlin
@@ -113,7 +113,7 @@ of the engine is more BETA.
 
 |Plugin Version|Client Extension Version|Elasticsearch Version|Kotlin Version|Notes|
 |--------------|---------------------|--------------|----------|---------|
-|1.0.0-ES-5.6.7-BETA-05|1.0.0-BETA-06|**Elasticsearch 5.6.7**|**Kotlin 1.2.21**| |
+|1.0.0-ES-5.6.7-BETA-06|1.0.0-BETA-06|**Elasticsearch 5.6.7**|**Kotlin 1.2.21**| |
 |1.0.0-ES-6.2.4-BETA-07|1.0.0-BETA-07|**Elasticsearch 6.2.4**|**Kotlin 1.2.31**|current|
 
 More information is available under [each release](https://github.com/kohesive/elasticsearch-lang-kotlin/releases).
@@ -121,7 +121,7 @@ More information is available under [each release](https://github.com/kohesive/e
 Install on server using (replace version number with the one you intend to use):
 
 ```
-bin/elasticsearch-plugin install https://github.com/kohesive/elasticsearch-lang-kotlin/releases/download/v1.0.0-ES-5.6.7-BETA-05/lang-kotlin-1.0.0-ES-5.6.7-BETA-05.zip
+bin/elasticsearch-plugin install https://github.com/kohesive/elasticsearch-lang-kotlin/releases/download/v1.0.0-ES-6.2.4-BETA-07/lang-kotlin-1.0.0-ES-6.2.4-BETA-07.zip
 ```
 
 **NOTE:**  *You must accept the security permissions, these are only used for the compiler and not scripts which do not run with any extra privileges.*
@@ -131,13 +131,13 @@ A Elasticsearch cluster must enable this setting to use inline Kotlin scripts (a
 script.engine.kotlin.inline: true
 ```
 
-*(Read [script security settings](https://www.elastic.co/guide/en/elasticsearch/reference/5.6/modules-scripting-security.html) for more information.)*
+*(Read [script security settings](https://www.elastic.co/guide/en/elasticsearch/reference/6.2/modules-scripting-security.html) for more information.)*
 
 # Client Extensions (for Kotlin):
 
 For client library containing extension functions for Kotlin, use the follow artifact from Gradle or Maven:
 ```
-uy.kohesive.elasticsearch:elasticsearch-lang-kotlin-client:1.0.0-BETA-05
+uy.kohesive.elasticsearch:elasticsearch-lang-kotlin-client:1.0.0-BETA-07
 ```
 
 _(note that the version number might slightly differ as updates are added to the client that do not require a new server plugin update)_
